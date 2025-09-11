@@ -235,7 +235,8 @@ flights %>% filter(
 
 # Some SCHEDULED_TIME don't match with SCHEDULED_DEPARTURE and SCHEDULED_ARRIVAL
 flights %>% filter(
-  duration_in_mins(SCHEDULED_DEPARTURE, SCHEDULED_ARRIVAL, SCHEDULED_TIME_OVERNIGHT_COUNT) != SCHEDULED_TIME
+  duration_in_mins(SCHEDULED_DEPARTURE, SCHEDULED_ARRIVAL, SCHEDULED_TIME_OVERNIGHT_COUNT) 
+  != SCHEDULED_TIME
 ) %>% select(
   SCHEDULED_DEPARTURE, SCHEDULED_TIME, SCHEDULED_ARRIVAL, SCHEDULED_TIME_OVERNIGHT_COUNT
 )
@@ -243,7 +244,10 @@ flights %>% filter(
 # SCHEDULED_DEPARTURE and SCHEDULED_ARRIVAL are assumed always valid
 # Recalculate SCHEDULED_TIME
 flights = flights %>% mutate(
-  SCHEDULED_TIME = duration_in_mins(SCHEDULED_DEPARTURE, SCHEDULED_ARRIVAL, SCHEDULED_TIME_OVERNIGHT_COUNT)
+  SCHEDULED_TIME = duration_in_mins(
+    SCHEDULED_DEPARTURE, 
+    SCHEDULED_ARRIVAL, 
+    SCHEDULED_TIME_OVERNIGHT_COUNT)
 )
 
 # Some ELAPSED_TIME don't match the total of AIR_TIME, TAXI_IN, TAXI OUT
@@ -255,11 +259,19 @@ flights %>% filter(
 
 # Because AIR_TIME is higher than ELAPSED_TIME
 # Due to AIR_TIME_OVERNIGHT_COUNT more than ELAPSED_TIME_OVERNIGHT_COUNT
-# Due to poorly recorded WHEELS_OFF WHEELS_ON or DEPARTURE_TIME ARRIVAL_TIME, which we always assume valid
+# Due to poorly recorded WHEELS_OFF WHEELS_ON or DEPARTURE_TIME ARRIVAL_TIME
+# Which we always assume valid
 flights %>% filter(
   AIR_TIME_OVERNIGHT_COUNT > ELAPSED_TIME_OVERNIGHT_COUNT
 ) %>% select(
-  TAXI_OUT, AIR_TIME, TAXI_IN, ELAPSED_TIME, DEPARTURE_TIME, ARRIVAL_TIME, ELAPSED_TIME_OVERNIGHT_COUNT, WHEELS_OFF, WHEELS_ON, AIR_TIME_OVERNIGHT_COUNT
+  AIR_TIME, 
+  ELAPSED_TIME, 
+  DEPARTURE_TIME, 
+  ARRIVAL_TIME, 
+  ELAPSED_TIME_OVERNIGHT_COUNT, 
+  WHEELS_OFF, 
+  WHEELS_ON, 
+  AIR_TIME_OVERNIGHT_COUNT
 )
 
 # Delete these rows with data inconsistency
@@ -292,10 +304,21 @@ delayed_flights = flights %>% filter(
 # ARRIVAL_DELAY matches the sum of all delay types
 # No problem here
 delayed_flights %>% filter(
-  ARRIVAL_DELAY != AIR_SYSTEM_DELAY + SECURITY_DELAY + AIRLINE_DELAY + LATE_AIRCRAFT_DELAY + WEATHER_DELAY
-) %>% select(AIR_SYSTEM_DELAY, SECURITY_DELAY, AIRLINE_DELAY, LATE_AIRCRAFT_DELAY, WEATHER_DELAY, ARRIVAL_DELAY)
+  ARRIVAL_DELAY != 
+    AIR_SYSTEM_DELAY + 
+    SECURITY_DELAY + 
+    AIRLINE_DELAY + 
+    LATE_AIRCRAFT_DELAY + 
+    WEATHER_DELAY
+) %>% select(
+  AIR_SYSTEM_DELAY, 
+  SECURITY_DELAY, 
+  AIRLINE_DELAY, 
+  LATE_AIRCRAFT_DELAY, 
+  WEATHER_DELAY, 
+  ARRIVAL_DELAY
+)
 
-# --- Additional 
 
 # ----- Post-Validation Data Cleaning -----
 str(delayed_flights)
@@ -354,9 +377,12 @@ airports_iata_levels = levels(as.factor(airports$IATA_CODE))
 airports$IATA_CODE = factor(airports$IATA_CODE, airports_iata_levels)
 
 # Back to flights, make AIRLINE, ORIGIN_AIRPORT, DESTINATION_AIRPORT categorical
-delayed_flights$AIRLINE = factor(delayed_flights$AIRLINE, airlines_iata_levels)
-delayed_flights$ORIGIN_AIRPORT = factor(delayed_flights$ORIGIN_AIRPORT, airports_iata_levels)
-delayed_flights$DESTINATION_AIRPORT = factor(delayed_flights$DESTINATION_AIRPORT, airports_iata_levels)
+delayed_flights$AIRLINE = 
+  factor(delayed_flights$AIRLINE, airlines_iata_levels)
+delayed_flights$ORIGIN_AIRPORT = 
+  factor(delayed_flights$ORIGIN_AIRPORT, airports_iata_levels)
+delayed_flights$DESTINATION_AIRPORT = 
+  factor(delayed_flights$DESTINATION_AIRPORT, airports_iata_levels)
 
 # Make YEAR, MONTH, DAY and DAY_OF_WEEK categorical as well
 delayed_flights$YEAR = as.factor(delayed_flights$YEAR)
@@ -374,8 +400,13 @@ unique(delayed_flights$DIVERTED)
 unique(delayed_flights$CANCELLED)
 delayed_flights = delayed_flights %>% select(-DIVERTED, -CANCELLED)
 
+# Saving main data set as CSV 
+write.csv(delayed_flights, "data/delayed_flights.csv", row.names=FALSE)
+
 # ----- [Wang Liang Xuan, TP076334] -----
 # Objective 1: To investigate the effect of airline carriers on airline-caused delays
+
+delayed_flights = read.csv("data/delayed_flights.csv")
 
 # Analysis 1.1: How do different airlines compare in average airline-caused delays?
 
@@ -392,14 +423,18 @@ airline_delay_summary = delayed_flights %>%
 print(airline_delay_summary)
 
 # Visualization
-ggplot(delayed_flights, aes(x = AIRLINE, y = AIRLINE_DELAY)) +
+
+airline_delay_boxplot = ggplot(delayed_flights, aes(x = AIRLINE, y = AIRLINE_DELAY)) +
   geom_boxplot(fill = "skyblue", outlier.color = "red", alpha=0.6) +
+  scale_y_log10() +
   labs(
-    title = "Distribution of Airline-Caused Delays by Airline",
+    title = "Distribution of Airline-Caused Delays by Airline (Log Scale)",
     x = "Airline",
-    y = "Airline Delay (minutes)"
+    y = "Airline Delay (log minutes)"
   ) +
   theme_minimal()
+
+ggsave("output/airline_delay_boxplot.png", airline_delay_boxplot)
 
 # Analysis 1.2: Are the differences in airline-caused delays across airlines statistically significant?
 
@@ -421,7 +456,10 @@ airline_day_summary = delayed_flights %>%
 print(airline_day_summary)
 
 # Visualization: Heat Map
-ggplot(airline_day_summary, aes(x = factor(DAY_OF_WEEK), y = AIRLINE, fill = avg_delay)) +
+airline_delay_heatmap = ggplot(
+  airline_day_summary, 
+  aes(x = factor(DAY_OF_WEEK), y = AIRLINE, fill = avg_delay)
+  ) +
   geom_tile(color = "white") +
   scale_fill_gradient(low = "lightyellow", high = "red") +
   labs(
@@ -432,8 +470,12 @@ ggplot(airline_day_summary, aes(x = factor(DAY_OF_WEEK), y = AIRLINE, fill = avg
   ) +
   theme_minimal()
 
+ggsave("output/airline_delay_heatmap.png", airline_delay_heatmap)
+
 # ----- [Name, ID] -----
 # Objective 2:
+
+delayed_flights = read.csv("data/delayed_flights.csv")
 
 # Analysis 2.1:
 
@@ -447,6 +489,8 @@ ggplot(airline_day_summary, aes(x = factor(DAY_OF_WEEK), y = AIRLINE, fill = avg
 # ----- [Name, ID] -----
 # Objective 3:
 
+delayed_flights = read.csv("data/delayed_flights.csv")
+
 # Analysis 3.1:
 
 
@@ -458,6 +502,8 @@ ggplot(airline_day_summary, aes(x = factor(DAY_OF_WEEK), y = AIRLINE, fill = avg
 
 # ----- [Name, ID] -----
 # Objective 4:
+
+delayed_flights = read.csv("data/delayed_flights.csv")
 
 # Analysis 4.1:
 
@@ -473,15 +519,17 @@ ggplot(airline_day_summary, aes(x = factor(DAY_OF_WEEK), y = AIRLINE, fill = avg
 # Extra Feature 1
 # Route Congestion Score
 
+delayed_flights = read.csv("data/delayed_flights.csv")
+
 # Count how many flights depart from each origin
 origin_counts <- delayed_flights %>%
   group_by(ORIGIN_AIRPORT) %>%
-  summarise(origin_flights = n())
+  summarise(ORIGIN_FLIGHTS = n())
 
 # Count how many flights arrive at each destination
 dest_counts <- delayed_flights %>%
   group_by(DESTINATION_AIRPORT) %>%
-  summarise(dest_flights = n())
+  summarise(DESTINATION_FLIGHTS = n())
 
 # Join these counts back to the data set
 delayed_flights <- delayed_flights %>%
@@ -490,10 +538,10 @@ delayed_flights <- delayed_flights %>%
 
 # Create new feature: Route congestion score
 delayed_flights <- delayed_flights %>%
-  mutate(route_congestion = origin_flights + dest_flights)
+  mutate(ROUTE_CONGESTION = ORIGIN_FLIGHTS + DESTINATION_FLIGHTS)
 
 # Check the new feature
-head(delayed_flights %>% select(ORIGIN_AIRPORT, DESTINATION_AIRPORT, route_congestion))
+head(delayed_flights %>% select(ORIGIN_AIRPORT, DESTINATION_AIRPORT, ROUTE_CONGESTION))
 
 # Extra Feature 2
 
