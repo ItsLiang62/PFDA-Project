@@ -15,3 +15,7 @@ df <- read.csv("data/mydata.csv")
 For example, to save pie_chart as pie.png in output folder, you can run:
 
 ggsave("output/pie.png", plot = pie_chart, width = 6, height = 4, dpi = 300)
+
+Important:
+
+Please write delayed_flights = read.csv("data/delayed_flights.csv") at the start of each objective or feature.

@@ -3,7 +3,9 @@
 #
 #
 
+# ----- Libraries -----
 install.packages("tidyverse")
+
 library(tidyverse)
 
 # ----- Functions -----
@@ -137,25 +139,18 @@ num_overnight = function(baseline, actual, duration) {
 }
 
 
-# ----- Data import -----
+# ----- Data Import -----
 flights = read.csv("data/flights.csv")
 airlines = read.csv("data/iata_airline_codes.csv")
 airports = read.csv("data/iata_airport_codes.csv")
 
-# ----- Data cleaning -----
+# ----- Pre-Validation Data Cleaning -----
+str(flights)
 head(flights)
 colSums(is.na(flights))
 
 # Drop the index column
 flights = flights %>% select(-X)
-
-# Delete rows where all these columns are NA
-# Now, no NA entry exist
-flights = flights %>% filter(!(if_all(
-  c(AIR_SYSTEM_DELAY, 
-    SECURITY_DELAY, 
-    AIRLINE_DELAY, 
-    LATE_AIRCRAFT_DELAY), is.na)))
 
 # ----- Data validation -----
 
@@ -240,7 +235,8 @@ flights %>% filter(
 
 # Some SCHEDULED_TIME don't match with SCHEDULED_DEPARTURE and SCHEDULED_ARRIVAL
 flights %>% filter(
-  duration_in_mins(SCHEDULED_DEPARTURE, SCHEDULED_ARRIVAL, SCHEDULED_TIME_OVERNIGHT_COUNT) != SCHEDULED_TIME
+  duration_in_mins(SCHEDULED_DEPARTURE, SCHEDULED_ARRIVAL, SCHEDULED_TIME_OVERNIGHT_COUNT) 
+  != SCHEDULED_TIME
 ) %>% select(
   SCHEDULED_DEPARTURE, SCHEDULED_TIME, SCHEDULED_ARRIVAL, SCHEDULED_TIME_OVERNIGHT_COUNT
 )
@@ -248,7 +244,10 @@ flights %>% filter(
 # SCHEDULED_DEPARTURE and SCHEDULED_ARRIVAL are assumed always valid
 # Recalculate SCHEDULED_TIME
 flights = flights %>% mutate(
-  SCHEDULED_TIME = duration_in_mins(SCHEDULED_DEPARTURE, SCHEDULED_ARRIVAL, SCHEDULED_TIME_OVERNIGHT_COUNT)
+  SCHEDULED_TIME = duration_in_mins(
+    SCHEDULED_DEPARTURE, 
+    SCHEDULED_ARRIVAL, 
+    SCHEDULED_TIME_OVERNIGHT_COUNT)
 )
 
 # Some ELAPSED_TIME don't match the total of AIR_TIME, TAXI_IN, TAXI OUT
@@ -260,11 +259,19 @@ flights %>% filter(
 
 # Because AIR_TIME is higher than ELAPSED_TIME
 # Due to AIR_TIME_OVERNIGHT_COUNT more than ELAPSED_TIME_OVERNIGHT_COUNT
-# Due to poorly recorded WHEELS_OFF WHEELS_ON or DEPARTURE_TIME ARRIVAL_TIME, which we always assume valid
+# Due to poorly recorded WHEELS_OFF WHEELS_ON or DEPARTURE_TIME ARRIVAL_TIME
+# Which we always assume valid
 flights %>% filter(
   AIR_TIME_OVERNIGHT_COUNT > ELAPSED_TIME_OVERNIGHT_COUNT
 ) %>% select(
-  TAXI_OUT, AIR_TIME, TAXI_IN, ELAPSED_TIME, DEPARTURE_TIME, ARRIVAL_TIME, ELAPSED_TIME_OVERNIGHT_COUNT, WHEELS_OFF, WHEELS_ON, AIR_TIME_OVERNIGHT_COUNT
+  AIR_TIME, 
+  ELAPSED_TIME, 
+  DEPARTURE_TIME, 
+  ARRIVAL_TIME, 
+  ELAPSED_TIME_OVERNIGHT_COUNT, 
+  WHEELS_OFF, 
+  WHEELS_ON, 
+  AIR_TIME_OVERNIGHT_COUNT
 )
 
 # Delete these rows with data inconsistency
@@ -294,21 +301,181 @@ delayed_flights = flights %>% filter(
   ARRIVAL_DELAY > 0
 )
 
+# ARRIVAL_DELAY matches the sum of all delay types
+# No problem here
+delayed_flights %>% filter(
+  ARRIVAL_DELAY != 
+    AIR_SYSTEM_DELAY + 
+    SECURITY_DELAY + 
+    AIRLINE_DELAY + 
+    LATE_AIRCRAFT_DELAY + 
+    WEATHER_DELAY
+) %>% select(
+  AIR_SYSTEM_DELAY, 
+  SECURITY_DELAY, 
+  AIRLINE_DELAY, 
+  LATE_AIRCRAFT_DELAY, 
+  WEATHER_DELAY, 
+  ARRIVAL_DELAY
+)
 
-# ----- Student ID: TP076334 -----
-# Objective 1:
 
-# Analysis 1.1:
+# ----- Post-Validation Data Cleaning -----
+str(delayed_flights)
+head(delayed_flights)
+colSums(is.na(delayed_flights))
 
+# Delete rows where all reasons for delay are NA
+delayed_flights = delayed_flights %>% filter(!(if_all(
+  c(AIR_SYSTEM_DELAY, 
+    SECURITY_DELAY, 
+    AIRLINE_DELAY, 
+    LATE_AIRCRAFT_DELAY,
+    WEATHER_DELAY), is.na)))
 
-# Analysis 1.2:
+# Remove any duplicate rows
+delayed_flights = delayed_flights %>% distinct()
 
+# Inspecting airlines
+str(airlines)
+head(airlines)
+colSums(is.na(airlines))
 
-# Analysis 1.3:
+# Remove any duplicate rows based on IATA_CODE
+airlines = airlines %>% distinct(IATA_CODE, .keep_all=TRUE)
 
+# Saving the levels of airlines IATA_CODE
+airlines_iata_levels = levels(as.factor(airlines$IATA_CODE)) 
 
-# ----- Student ID: -----
+# Making IATA_CODE categorical
+airlines$IATA_CODE = factor(airlines$IATA_CODE, airlines_iata_levels)
+
+# Inspecting airports
+str(airports)
+head(airports)
+colSums(is.na(airports))
+
+# Checking LATITUDE for outliers and replace NA with clean mean (ignoring outliers)
+lat_outliers = boxplot.stats(airports$LATITUDE)$out
+clean_mean_lat = mean(airports$LATITUDE[!(airports$LATITUDE %in% lat_outliers)], na.rm=TRUE)
+
+airports$LATITUDE[is.na(airports$LATITUDE)] = clean_mean_lat
+
+# Checking LONGITUDE for outliers and replace NA with clean mean (ignoring outliers)
+long_outliers = boxplot.stats(airports$LONGITUDE)$out
+clean_mean_long = mean(airports$LONGITUDE[!(airports$LONGITUDE %in% long_outliers)], na.rm=TRUE)
+
+airports$LONGITUDE[is.na(airports$LONGITUDE)] = clean_mean_long
+
+# Remove any duplicate rows based on IATA_CODE
+airports = airports %>% distinct(IATA_CODE, .keep_all=TRUE)
+
+# Saving the levels of airports IATA_CODE
+airports_iata_levels = levels(as.factor(airports$IATA_CODE)) 
+
+# Making IATA_CODE categorical
+airports$IATA_CODE = factor(airports$IATA_CODE, airports_iata_levels)
+
+# Back to flights, make AIRLINE, ORIGIN_AIRPORT, DESTINATION_AIRPORT categorical
+delayed_flights$AIRLINE = 
+  factor(delayed_flights$AIRLINE, airlines_iata_levels)
+delayed_flights$ORIGIN_AIRPORT = 
+  factor(delayed_flights$ORIGIN_AIRPORT, airports_iata_levels)
+delayed_flights$DESTINATION_AIRPORT = 
+  factor(delayed_flights$DESTINATION_AIRPORT, airports_iata_levels)
+
+# Make YEAR, MONTH, DAY and DAY_OF_WEEK categorical as well
+delayed_flights$YEAR = as.factor(delayed_flights$YEAR)
+delayed_flights$MONTH = as.factor(delayed_flights$MONTH)
+delayed_flights$DAY = as.factor(delayed_flights$DAY)
+delayed_flights$DAY_OF_WEEK = as.factor(delayed_flights$DAY_OF_WEEK)
+
+# Remove rows where ORIGIN_AIRPORT or DESTINATION_AIRPORT are NA after categorization
+delayed_flights = delayed_flights %>% filter(
+  !is.na(ORIGIN_AIRPORT) & !is.na(DESTINATION_AIRPORT)
+)
+
+# Drop DIVERTED and CANCELLED column because they store only one unique value
+unique(delayed_flights$DIVERTED)
+unique(delayed_flights$CANCELLED)
+delayed_flights = delayed_flights %>% select(-DIVERTED, -CANCELLED)
+
+# Saving main data set as CSV 
+write.csv(delayed_flights, "data/delayed_flights.csv", row.names=FALSE)
+
+# ----- [Wang Liang Xuan, TP076334] -----
+# Objective 1: To investigate the effect of airline carriers on airline-caused delays
+
+delayed_flights = read.csv("data/delayed_flights.csv")
+
+# Analysis 1.1: How do different airlines compare in average airline-caused delays?
+
+# Average airline-caused delay per airline
+airline_delay_summary = delayed_flights %>%
+  group_by(AIRLINE) %>%
+  summarise(
+    avg_airline_delay = mean(AIRLINE_DELAY, na.rm=TRUE),
+    median_airline_delay = median(AIRLINE_DELAY, na.rm=TRUE),
+    count = n()
+  ) %>%
+  arrange(desc(avg_airline_delay))
+
+print(airline_delay_summary)
+
+# Visualization
+
+airline_delay_boxplot = ggplot(delayed_flights, aes(x = AIRLINE, y = AIRLINE_DELAY)) +
+  geom_boxplot(fill = "skyblue", outlier.color = "red", alpha=0.6) +
+  scale_y_log10() +
+  labs(
+    title = "Distribution of Airline-Caused Delays by Airline (Log Scale)",
+    x = "Airline",
+    y = "Airline Delay (log minutes)"
+  ) +
+  theme_minimal()
+
+ggsave("output/airline_delay_boxplot.png", airline_delay_boxplot)
+
+# Analysis 1.2: Are the differences in airline-caused delays across airlines statistically significant?
+
+# One-way ANOVA
+anova_model = aov(AIRLINE_DELAY ~ AIRLINE, data = delayed_flights)
+summary(anova_model)
+
+# Post-hoc test
+TukeyHSD(anova_model)
+
+# Analysis 1.3: What external factors moderate the relationship between airline and airline-caused delay?
+
+# Average delay by airline and day of week
+airline_day_summary = delayed_flights %>%
+  group_by(AIRLINE, DAY_OF_WEEK) %>%
+  summarise(avg_delay = mean(AIRLINE_DELAY, na.rm=TRUE)) %>%
+  ungroup()
+
+print(airline_day_summary)
+
+# Visualization: Heat Map
+airline_delay_heatmap = ggplot(
+  airline_day_summary, 
+  aes(x = factor(DAY_OF_WEEK), y = AIRLINE, fill = avg_delay)
+  ) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "lightyellow", high = "red") +
+  labs(
+    title = "Average Airline Delay by Airline and Day of Week",
+    x = "Day of Week",
+    y = "Airline",
+    fill = "Avg Delay (mins)"
+  ) +
+  theme_minimal()
+
+ggsave("output/airline_delay_heatmap.png", airline_delay_heatmap)
+
+# ----- [Name, ID] -----
 # Objective 2:
+
+delayed_flights = read.csv("data/delayed_flights.csv")
 
 # Analysis 2.1:
 
@@ -319,8 +486,10 @@ delayed_flights = flights %>% filter(
 # Analysis 2.3:
 
 
-# ----- Student ID: -----
+# ----- [Name, ID] -----
 # Objective 3:
+
+delayed_flights = read.csv("data/delayed_flights.csv")
 
 # Analysis 3.1:
 
@@ -331,8 +500,10 @@ delayed_flights = flights %>% filter(
 # Analysis 3.3:
 
 
-# ----- Student ID: -----
+# ----- [Name, ID] -----
 # Objective 4:
+
+delayed_flights = read.csv("data/delayed_flights.csv")
 
 # Analysis 4.1:
 
@@ -343,16 +514,40 @@ delayed_flights = flights %>% filter(
 # Analysis 4.3:
 
 
-# ----- Additional research -----
+# ----- Additional features -----
 
-# Extra Research 1
+# Extra Feature 1
+# Route Congestion Score
+
+delayed_flights = read.csv("data/delayed_flights.csv")
+
+# Count how many flights depart from each origin
+origin_counts <- delayed_flights %>%
+  group_by(ORIGIN_AIRPORT) %>%
+  summarise(ORIGIN_FLIGHTS = n())
+
+# Count how many flights arrive at each destination
+dest_counts <- delayed_flights %>%
+  group_by(DESTINATION_AIRPORT) %>%
+  summarise(DESTINATION_FLIGHTS = n())
+
+# Join these counts back to the data set
+delayed_flights <- delayed_flights %>%
+  left_join(origin_counts, by = "ORIGIN_AIRPORT") %>%
+  left_join(dest_counts, by = "DESTINATION_AIRPORT")
+
+# Create new feature: Route congestion score
+delayed_flights <- delayed_flights %>%
+  mutate(ROUTE_CONGESTION = ORIGIN_FLIGHTS + DESTINATION_FLIGHTS)
+
+# Check the new feature
+head(delayed_flights %>% select(ORIGIN_AIRPORT, DESTINATION_AIRPORT, ROUTE_CONGESTION))
+
+# Extra Feature 2
 
 
-# Extra Research 2
+# Extra Feature 3
 
 
-# Extra Research 3
-
-
-# Extra Research 4
+# Extra Feature 4
 
