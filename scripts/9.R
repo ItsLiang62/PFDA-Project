@@ -578,6 +578,10 @@ head(delayed_flights %>% select(ORIGIN_AIRPORT, DESTINATION_AIRPORT, ROUTE_CONGE
 
 # Extra Feature 2
 # Seasonal Delay Indicator
+# Load required library
+library(dplyr)
+# Read data
+delayed_flights = read.csv("data/delayed_flights.csv")
 # Create season variable based on month
 delayed_flights <- delayed_flights %>%
   mutate(SEASON = case_when(
