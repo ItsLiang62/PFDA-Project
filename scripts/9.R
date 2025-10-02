@@ -1,7 +1,7 @@
 # Wang Liang Xuan     , TP076334
 # Adrian Liew Ren Qian, TP074952
 # Wilson Tan          , TP073857
-# Gavin Yong Dee Xin  , TP
+# Tai Kok Wai         , TP076944
 
 # ----- Libraries -----
 install.packages("tidyverse")
