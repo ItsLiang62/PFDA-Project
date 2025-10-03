@@ -625,73 +625,84 @@ summary(delay_model)
 exp(coef(delay_model))
 
 
-# ----- [Name, ID] -----
-# Objective 4:
+# ----- [Tai Kok Wai, TP076944] -----
+# Objective 4: To investigate how airport congestion affects arrival delays across different times of day.
 
 delayed_flights = read.csv("data/delayed_flights.csv")
 
 # Analysis 4.1:
+# Group data by origin airport and calculate average arrival delay and flight count
 top_airports <- delayed_flights %>%
   group_by(ORIGIN_AIRPORT) %>%
   summarise(avg_delay = mean(ARRIVAL_DELAY), flight_count = n()) %>%
-  arrange(desc(flight_count)) %>%
-  slice(1:10)
+  arrange(desc(flight_count)) %>%  # Sort airports by number of flights (busiest first)
+  slice(1:10)  # Select top 10 busiest airports
 
+# Create a horizontal bar chart of average delay at top 10 busiest airports
 ggplot(top_airports, aes(x = reorder(ORIGIN_AIRPORT, avg_delay), y = avg_delay)) +
   geom_bar(stat = "identity", fill = "steelblue") +
-  coord_flip() +
+  coord_flip() +  # Flip axes for better readability
   labs(title = "Average Arrival Delay at Top 10 Busiest Airports",
        x = "Origin Airport",
        y = "Average Arrival Delay (minutes)")
 
+# Print the summary table of top airports and their average delays
 print(top_airports)
 
 
 
+
 # Analysis 4.2:
+# Calculate daily departure counts per airport (proxy for congestion)
 airport_congestion <- delayed_flights %>%
   group_by(ORIGIN_AIRPORT, YEAR, MONTH, DAY) %>%
   summarise(daily_departures = n(), .groups = "drop")
 
+# Ensure date columns are integers for consistent joining
 airport_congestion <- airport_congestion %>%
   mutate(YEAR = as.integer(YEAR),
          MONTH = as.integer(MONTH),
          DAY = as.integer(DAY))
 
+# Merge congestion data back into main dataset
 delayed_flights <- delayed_flights %>%
   mutate(YEAR = as.integer(YEAR),
          MONTH = as.integer(MONTH),
          DAY = as.integer(DAY)) %>%
   left_join(airport_congestion, by = c("ORIGIN_AIRPORT", "YEAR", "MONTH", "DAY"))
 
+# Build regression model to test if congestion predicts arrival delay
 model_congestion <- lm(ARRIVAL_DELAY ~ daily_departures + AIRLINE + DAY_OF_WEEK, data = delayed_flights)
-summary(model_congestion)
+summary(model_congestion)  # Show model summary with coefficients and significance
 
+# Visualize relationship between congestion and arrival delay
 ggplot(delayed_flights, aes(x = daily_departures, y = ARRIVAL_DELAY)) +
-  geom_point(alpha = 0.3, color = "steelblue") +
-  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  geom_point(alpha = 0.3, color = "steelblue") +  # Scatter plot with transparency
+  geom_smooth(method = "lm", se = FALSE, color = "red") +  # Add regression line
   labs(title = "Arrival Delay vs Daily Departures",
        x = "Daily Departures (Congestion)",
        y = "Arrival Delay (minutes)")
 
 
-
 # Analysis 4.3:
+# Extract hour from scheduled departure time and classify into time buckets
 delayed_flights <- delayed_flights %>%
-  mutate(hour = as.numeric(substr(SCHEDULED_DEPARTURE, 1, 2)),
-         time_bucket = case_when(
+  mutate(hour = as.numeric(substr(SCHEDULED_DEPARTURE, 1, 2)),  # Get hour from time string
+         time_bucket = case_when(  # Categorize into Morning, Afternoon, Evening, Night
            hour >= 5 & hour < 12 ~ "Morning",
            hour >= 12 & hour < 17 ~ "Afternoon",
            hour >= 17 & hour < 21 ~ "Evening",
            TRUE ~ "Night"
          ))
 
+# Build interaction model to test if congestion effects vary by time of day
 model_interaction <- lm(ARRIVAL_DELAY ~ daily_departures * time_bucket + AIRLINE, data = delayed_flights)
-summary(model_interaction)
+summary(model_interaction)  # Show model summary with interaction terms
 
+# Visualize congestion effects across different time buckets
 ggplot(delayed_flights, aes(x = daily_departures, y = ARRIVAL_DELAY, color = time_bucket)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "lm", se = FALSE) +
+  geom_point(alpha = 0.3) +  # Scatter plot colored by time bucket
+  geom_smooth(method = "lm", se = FALSE) +  # Add regression lines per time bucket
   labs(title = "Congestion Effect on Arrival Delay by Time of Day",
        x = "Daily Departures",
        y = "Arrival Delay (minutes)",
@@ -773,17 +784,17 @@ head(delayed_flights %>% select(DISTANCE, AIR_TIME, AVERAGE_SPEED_PH))
 
 # Extra Feature 4
 
-# Define delay columns
+# Define the list of delay-related columns to compare
 delay_cols <- c("AIRLINE_DELAY", "WEATHER_DELAY", "LATE_AIRCRAFT_DELAY", "SECURITY_DELAY", "AIR_SYSTEM_DELAY")
 
-# Create dominant_delay tag
+# For each flight, find which delay type has the highest value and assign it as the dominant cause
 delayed_flights <- delayed_flights %>%
-  rowwise() %>%
-  mutate(dominant_delay = delay_cols[which.max(c_across(all_of(delay_cols)))]) %>%
-  ungroup()
+  rowwise() %>%  # Process each row individually
+  mutate(dominant_delay = delay_cols[which.max(c_across(all_of(delay_cols)))]) %>%  # Identify the column with the max delay
+  ungroup()  # Return to regular (non-rowwise) processing
 
-# Count how many flights fall under each dominant delay type
+# Count how many flights fall under each dominant delay type and sort from most to least common
 delayed_flights %>%
-  count(dominant_delay) %>%
-  arrange(desc(n))
+  count(dominant_delay) %>%  # Count frequency of each dominant delay label
+  arrange(desc(n))  # Sort in descending order to see most frequent causes first
 
