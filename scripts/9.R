@@ -794,12 +794,11 @@ delay_cols <- c("AIRLINE_DELAY", "WEATHER_DELAY", "LATE_AIRCRAFT_DELAY", "SECURI
 
 # For each flight, find which delay type has the highest value and assign it as the dominant cause
 delayed_flights <- delayed_flights %>%
-  rowwise() %>%  # Process each row individually
-  mutate(dominant_delay = delay_cols[which.max(c_across(all_of(delay_cols)))]) %>%  # Identify the column with the max delay
-  ungroup()  # Return to regular (non-rowwise) processing
+  rowwise() %>%
+  mutate(dominant_delay = delay_cols[which.max(c_across(all_of(delay_cols)))]) %>%
+  ungroup()
 
 # Count how many flights fall under each dominant delay type and sort from most to least common
 delayed_flights %>%
-  count(dominant_delay) %>%  # Count frequency of each dominant delay label
-  arrange(desc(n))  # Sort in descending order to see most frequent causes first
-
+  count(dominant_delay) %>%
+  arrange(desc(n))
