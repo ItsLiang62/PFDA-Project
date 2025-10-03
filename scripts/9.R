@@ -1,7 +1,7 @@
-# Wang Liang Xuan, TP076334
-#
-#
-#
+# Wang Liang Xuan     , TP076334
+# Adrian Liew Ren Qian, TP074952
+# Wilson Tan          , TP073857
+# Tai Kok Wai         , TP076944
 
 # ----- Libraries -----
 install.packages("tidyverse")
@@ -519,18 +519,110 @@ summary(lm1)
 lm2 <- lm(ARRIVAL_DELAY ~ WEATHER_DELAY + LATE_AIRCRAFT_DELAY, data = delayed_flights)
 summary(lm2)
 
-# ----- [Name, ID] -----
-# Objective 3:
+# ----- [Wilson Tan, TP073857] -----
+# Objective 3: To determine the impact of the time of day on flight delays.
 
 delayed_flights = read.csv("data/delayed_flights.csv")
 
-# Analysis 3.1:
+# Analysis 3.1: How does the average departure delay vary by the hour of the day?
+
+# Pre-processing: Create a 'departure_hour' column from SCHEDULED_DEPARTURE
+flights_processed <- delayed_flights %>%
+  mutate(departure_hour = floor(SCHEDULED_DEPARTURE / 100))
+
+# Group by hour and calculate the average departure delay
+hourly_delay <- flights_processed %>%
+  group_by(departure_hour) %>%
+  summarise(average_delay = mean(DEPARTURE_DELAY, na.rm = TRUE), 
+            flight_count = n())
+print(hourly_delay,n=24)
+
+# Visualize the findings
+hourly_delay_line_plot = ggplot(hourly_delay, 
+                                aes(x = departure_hour, y = average_delay)) +
+  geom_line(color = "steelblue", size = 1) +
+  geom_point(color = "steelblue", aes(size = flight_count)) +
+  labs(
+    title = "Average Departure Delay by Hour of the Day",
+    x = "Scheduled Departure Hour (24-hour format)",
+    y = "Average Departure Delay (Minutes)"
+  ) +
+  scale_size_continuous(name = "Number of Flights") +
+  scale_x_continuous(breaks = seq(0, 23, by = 1)) +
+  theme_minimal()
+
+ggsave("output/hourly_delay_line_plot.png", hourly_delay_line_plot, width = 12, 
+       height = 8, dpi = 300, bg = "white")
 
 
-# Analysis 3.2:
+# Analysis 3.2: What are the primary causes of delays at different times of the day?
+
+# Calculate the average of each delay type by hour
+hourly_delay_composition <- flights_processed %>%
+  group_by(departure_hour) %>%
+  summarise(
+    airline_delay = mean(AIRLINE_DELAY, na.rm = TRUE),
+    late_aircraft_delay = mean(LATE_AIRCRAFT_DELAY, na.rm = TRUE),
+    air_system_delay = mean(AIR_SYSTEM_DELAY, na.rm = TRUE),
+    weather_delay = mean(WEATHER_DELAY, na.rm = TRUE),
+    security_delay = mean(SECURITY_DELAY, na.rm = TRUE)
+  )
+print(hourly_delay_composition, n=24)
+
+# Reshape the data from wide to long format for easier plotting
+hourly_delay_long <- hourly_delay_composition %>%
+  pivot_longer(
+    cols = -departure_hour,
+    names_to = "delay_type",
+    values_to = "minutes"
+  )
+
+# Visualize the composition of delays using a stacked area chart
+hourly_delay_area_chart = ggplot(hourly_delay_long, 
+                                 aes(x = departure_hour, y = minutes, 
+                                     fill = delay_type)) +
+  geom_area(position = 'stack', alpha = 0.8) +
+  labs(
+    title = "Composition of Arrival Delays by Hour of the Day",
+    x = "Scheduled Departure Hour (24-hour format)",
+    y = "Average Delay Contribution (Minutes)",
+    fill = "Type of Delay"
+  ) +
+  scale_x_continuous(breaks = seq(0, 23, by = 1)) +
+  scale_fill_brewer(palette = 4) +
+  theme_minimal()
+
+ggsave("output/hourly_delay_area_chart.png", hourly_delay_area_chart, 
+       width = 12, height = 8, dpi = 300, bg = "white")
 
 
-# Analysis 3.3:
+# Analysis 3.3: Does the time of day significantly predict the likelihood of a major delay?
+# Pre-processing: Create a binary outcome and time-of-day categories
+model_data <- flights_processed %>%
+  mutate(
+    is_major_delay = ifelse(DEPARTURE_DELAY > 30, 1, 0),
+    departure_period = case_when(
+      departure_hour >= 5 & departure_hour < 12  ~ "Morning (5-12)",
+      departure_hour >= 12 & departure_hour < 17 ~ "Afternoon (12-17)",
+      departure_hour >= 17 & departure_hour < 21 ~ "Evening (17-21)",
+      TRUE                                       ~ "Night (21-5)"
+    )
+  ) %>%
+  # Set a reference level for the model
+  mutate(departure_period = factor(departure_period, 
+                                   levels = c("Morning (5-12)", "Afternoon (12-17)", 
+                                              "Evening (17-21)", "Night (21-5)")))
+
+# Build the logistic regression model
+delay_model <- glm(is_major_delay ~ departure_period,
+                   data = model_data,
+                   family = "binomial")
+
+# View the model summary
+summary(delay_model)
+
+# To interpret the results, we can exponentiate the coefficients to get odds ratios
+exp(coef(delay_model))
 
 
 # ----- [Name, ID] -----
@@ -576,6 +668,7 @@ delayed_flights <- delayed_flights %>%
 # Check the new feature
 head(delayed_flights %>% select(ORIGIN_AIRPORT, DESTINATION_AIRPORT, ROUTE_CONGESTION))
 
+
 # Extra Feature 2
 # Seasonal Delay Indicator
 # Load required library
@@ -606,6 +699,17 @@ print(season_count)
 head(delayed_flights %>% select(MONTH, SEASON, ARRIVAL_DELAY))
 
 # Extra Feature 3
+# Average Flight Speed
+
+delayed_flights = read.csv("data/delayed_flights.csv")
+
+# Calculate Speed as Distance / (Air Time in hours)
+# Check for AIR_TIME > 0 to avoid division by zero.
+delayed_flights <- delayed_flights %>%
+  mutate(AVERAGE_SPEED_PH = ifelse(AIR_TIME > 0, (DISTANCE / (AIR_TIME / 60)), NA))
+
+# Check the new feature, showing relevant columns
+head(delayed_flights %>% select(DISTANCE, AIR_TIME, AVERAGE_SPEED_PH))
 
 
 # Extra Feature 4
