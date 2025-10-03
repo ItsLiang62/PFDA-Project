@@ -654,8 +654,6 @@ ggplot(top_airports, aes(x = reorder(ORIGIN_AIRPORT, avg_delay), y = avg_delay))
 print(top_airports)
 
 
-
-
 # Analysis 4.2:
 
 # Calculate daily departure counts per airport (proxy for congestion)
