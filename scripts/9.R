@@ -633,8 +633,7 @@ exp(coef(delay_model))
 
 delayed_flights = read.csv("data/delayed_flights.csv")
 
-# Analysis 4.1:
-# Which airports experience the highest average arrival delays?
+# Analysis 4.1: Which airports experience the highest average arrival delays?
 # Group data by origin airport and calculate average arrival delay and flight count?
 top_airports <- delayed_flights %>%
   group_by(ORIGIN_AIRPORT) %>%
@@ -654,8 +653,8 @@ ggplot(top_airports, aes(x = reorder(ORIGIN_AIRPORT, avg_delay), y = avg_delay))
 print(top_airports)
 
 
-# Analysis 4.2:
-# Does airport congestion significantly predict arrival del
+# Analysis 4.2: Does airport congestion significantly predict arrival delay
+
 # Calculate daily departure counts per airport (proxy for congestion)
 airport_congestion <- delayed_flights %>%
   group_by(ORIGIN_AIRPORT, YEAR, MONTH, DAY) %>%
@@ -687,8 +686,8 @@ ggplot(delayed_flights, aes(x = daily_departures, y = ARRIVAL_DELAY)) +
        y = "Arrival Delay (minutes)")
 
 
-# Analysis 4.3:
-# Does time of day moderate the effect of congestion?
+# Analysis 4.3: Does time of day moderate the effect of congestion?
+
 # Extract hour from scheduled departure time and classify into time buckets
 delayed_flights <- delayed_flights %>%
   mutate(hour = as.numeric(substr(SCHEDULED_DEPARTURE, 1, 2)),  # Get hour from time string
@@ -745,6 +744,7 @@ head(delayed_flights %>% select(ORIGIN_AIRPORT, DESTINATION_AIRPORT, ROUTE_CONGE
 
 # Extra Feature 2
 # Seasonal Delay Indicator
+
 # Load required library
 library(dplyr)
 # Read data
@@ -787,7 +787,8 @@ head(delayed_flights %>% select(DISTANCE, AIR_TIME, AVERAGE_SPEED_PH))
 
 
 # Extra Feature 4
-# Delay Cause Tag 
+# Delay Cause Tag
+
 # Define the list of delay-related columns to compare
 delay_cols <- c("AIRLINE_DELAY", "WEATHER_DELAY", "LATE_AIRCRAFT_DELAY", "SECURITY_DELAY", "AIR_SYSTEM_DELAY")
 
