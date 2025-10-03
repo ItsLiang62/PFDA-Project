@@ -503,6 +503,7 @@ ggsave("output/weather_vs_arrival.png", scatter_plot)
 print(scatter_plot)
 
 # Analysis 2.2:Is there a significant correlation between weather delay and arrival delay?
+
 # Correlation test using Spearman (non-parametric, suitable for skewed data)
 cor_test <- cor.test(delayed_flights$WEATHER_DELAY,
                      delayed_flights$ARRIVAL_DELAY,
@@ -511,6 +512,7 @@ cor_test <- cor.test(delayed_flights$WEATHER_DELAY,
 print(cor_test)
 
 # Analysis 2.3:Does weather delay significantly predict arrival delay?
+
 # Simple regression
 lm1 <- lm(ARRIVAL_DELAY ~ WEATHER_DELAY, data = delayed_flights)
 summary(lm1)
@@ -597,6 +599,7 @@ ggsave("output/hourly_delay_area_chart.png", hourly_delay_area_chart,
 
 
 # Analysis 3.3: Does the time of day significantly predict the likelihood of a major delay?
+
 # Pre-processing: Create a binary outcome and time-of-day categories
 model_data <- flights_processed %>%
   mutate(
@@ -653,6 +656,7 @@ print(top_airports)
 
 
 # Analysis 4.2:
+
 # Calculate daily departure counts per airport (proxy for congestion)
 airport_congestion <- delayed_flights %>%
   group_by(ORIGIN_AIRPORT, YEAR, MONTH, DAY) %>%
@@ -685,6 +689,7 @@ ggplot(delayed_flights, aes(x = daily_departures, y = ARRIVAL_DELAY)) +
 
 
 # Analysis 4.3:
+
 # Extract hour from scheduled departure time and classify into time buckets
 delayed_flights <- delayed_flights %>%
   mutate(hour = as.numeric(substr(SCHEDULED_DEPARTURE, 1, 2)),  # Get hour from time string
