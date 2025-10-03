@@ -472,19 +472,52 @@ airline_delay_heatmap = ggplot(
 
 ggsave("output/airline_delay_heatmap.png", airline_delay_heatmap)
 
-# ----- [Name, ID] -----
-# Objective 2: 
+# ----- [ADRIAN LIEW REN QIAN, TP074952] -----
+# Objective 2:The aim of this objective is to determine how weather-related delays contribute to overall arrival delays.
 
 delayed_flights = read.csv("data/delayed_flights.csv")
 
-# Analysis 2.1: 
+# Analysis 2.1:What is the distribution of weather delays compared to arrival delays?
 
+# Replace NA in weather delay with 0
+delayed_flights$WEATHER_DELAY[is.na(delayed_flights$WEATHER_DELAY)] <- 0
 
-# Analysis 2.2: 
+# Descriptive statistics
+summary(delayed_flights$ARRIVAL_DELAY)
+summary(delayed_flights$WEATHER_DELAY)
 
+# Scatter plot
+library(ggplot2)
+scatter_plot <- ggplot(delayed_flights, aes(x = WEATHER_DELAY, y = ARRIVAL_DELAY)) +
+  geom_jitter(alpha = 0.3, color = "blue") +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +
+  coord_cartesian(xlim = c(0, 300), ylim = c(-50, 300)) +
+  labs(
+    title = "Arrival Delay vs Weather Delay",
+    x = "Weather Delay (minutes)",
+    y = "Arrival Delay (minutes)"
+  ) +
+  theme_minimal()
 
-# Analysis 2.3: 
+ggsave("output/weather_vs_arrival.png", scatter_plot)
+print(scatter_plot)
 
+# Analysis 2.2:Is there a significant correlation between weather delay and arrival delay?
+# Correlation test using Spearman (non-parametric, suitable for skewed data)
+cor_test <- cor.test(delayed_flights$WEATHER_DELAY,
+                     delayed_flights$ARRIVAL_DELAY,
+                     method = "spearman")
+
+print(cor_test)
+
+# Analysis 2.3:Does weather delay significantly predict arrival delay?
+# Simple regression
+lm1 <- lm(ARRIVAL_DELAY ~ WEATHER_DELAY, data = delayed_flights)
+summary(lm1)
+
+# Multiple regression including late aircraft delay as control
+lm2 <- lm(ARRIVAL_DELAY ~ WEATHER_DELAY + LATE_AIRCRAFT_DELAY, data = delayed_flights)
+summary(lm2)
 
 # ----- [Wilson Tan, TP073857] -----
 # Objective 3: To determine the impact of the time of day on flight delays.
@@ -637,7 +670,33 @@ head(delayed_flights %>% select(ORIGIN_AIRPORT, DESTINATION_AIRPORT, ROUTE_CONGE
 
 
 # Extra Feature 2
+# Seasonal Delay Indicator
+# Load required library
+library(dplyr)
+# Read data
+delayed_flights = read.csv("data/delayed_flights.csv")
+# Create season variable based on month
+delayed_flights <- delayed_flights %>%
+  mutate(SEASON = case_when(
+    MONTH %in% c(12, 1, 2) ~ "Winter",
+    MONTH %in% c(3, 4, 5)  ~ "Spring",
+    MONTH %in% c(6, 7, 8)  ~ "Summer",
+    MONTH %in% c(9, 10, 11) ~ "Autumn",
+    TRUE ~ NA_character_
+  ))
 
+# Quick count of flights per season
+season_count <- delayed_flights %>%
+  group_by(SEASON) %>%
+  summarise(
+    flight_count = n(),
+    avg_arrival_delay = mean(ARRIVAL_DELAY, na.rm = TRUE)
+  )
+
+print(season_count)
+
+# Check first few rows
+head(delayed_flights %>% select(MONTH, SEASON, ARRIVAL_DELAY))
 
 # Extra Feature 3
 # Average Flight Speed
