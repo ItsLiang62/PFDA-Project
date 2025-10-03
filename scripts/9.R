@@ -634,6 +634,7 @@ exp(coef(delay_model))
 delayed_flights = read.csv("data/delayed_flights.csv")
 
 # Analysis 4.1:
+
 # Group data by origin airport and calculate average arrival delay and flight count
 top_airports <- delayed_flights %>%
   group_by(ORIGIN_AIRPORT) %>%
